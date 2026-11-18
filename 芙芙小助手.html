@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>芙芙小助手</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root{
+    --blue-1:#0b1e3a; --blue-2:#123a6b; --blue-3:#1e6fd9;
+    --blue-4:#5fb3ff; --blue-5:#bfe3ff; --glow:rgba(95,179,255,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:radial-gradient(circle at 20% 10%,var(--blue-2),var(--blue-1) 60%);
+    color:#eaf4ff;overflow-x:hidden;
+  }
+  .drop-glow{
+    position:fixed;width:180px;height:180px;border-radius:50%;
+    background:radial-gradient(circle,var(--glow),transparent 70%);
+    pointer-events:none;transform:translate(-50%,-50%);
+    opacity:0;transition:opacity .3s;z-index:0;
+  }
+  .water-drop{
+    position:fixed;pointer-events:none;z-index:999;
+    border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+    background:radial-gradient(circle at 35% 30%,#ffffff,#5fb3ff 45%,#1e6fd9 100%);
+    box-shadow:0 0 10px rgba(95,179,255,.8);
+    animation:dropAnim .7s ease-out forwards;
+  }
+  @keyframes dropAnim{
+    0%{transform:translate(-50%,-50%) scale(.4);opacity:1;}
+    70%{opacity:.8;}
+    100%{transform:translate(-50%,-140%) scale(1.1);opacity:0;}
+  }
+  header{padding:28px 20px 10px;position:relative;z-index:1;}
+  header h1{margin:0;font-size:22px;letter-spacing:1px;}
+  header p{margin:6px 0 0;font-size:13px;color:var(--blue-5);opacity:.8;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px;position:relative;z-index:1;}
+  .card{
+    background:linear-gradient(145deg,rgba(30,111,217,.28),rgba(18,58,107,.55));
+    border:1px solid rgba(95,179,255,.25);border-radius:18px;padding:18px 14px;
+    cursor:pointer;transition:transform .15s,box-shadow .2s;backdrop-filter:blur(6px);
+  }
+  .card:active{transform:scale(.96);}
+  .card:hover{box-shadow:0 0 24px var(--glow);}
+  .card .icon{font-size:26px;}
+  .card .name{margin-top:8px;font-size:16px;font-weight:600;}
+  .card .desc{margin-top:4px;font-size:12px;color:var(--blue-5);opacity:.75;}
+  .panel{display:none;position:relative;z-index:1;padding:0 20px 40px;}
+  .panel.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .back{
+    display:inline-block;margin:8px 0 16px;padding:8px 14px;border-radius:12px;
+    background:rgba(95,179,255,.15);border:1px solid rgba(95,179,255,.3);
+    color:var(--blue-5);font-size:13px;cursor:pointer;
+  }
+  h2{margin:0 0 14px;font-size:18px;}
+  input,textarea,button,select{font-family:inherit;font-size:14px;}
+  input,textarea,select{
+    width:100%;padding:12px;border-radius:12px;border:1px solid rgba(95,179,255,.3);
+    background:rgba(11,30,58,.6);color:#eaf4ff;outline:none;margin-bottom:10px;
+  }
+  input::placeholder,textarea::placeholder{color:rgba(191,227,255,.45);}
+  textarea{min-height:70px;resize:vertical;}
+  .btn{
+    padding:11px 18px;border-radius:12px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,var(--blue-3),var(--blue-4));
+    color:#04101f;font-weight:700;
+  }
+  .btn:active{opacity:.85;}
+  .btn.ghost{background:rgba(95,179,255,.15);color:var(--blue-5);border:1px solid rgba(95,179,255,.3);font-weight:500;}
+  .btn.danger{background:rgba(244,67,54,.18);color:#ff8fa3;border:1px solid rgba(244,67,54,.4);font-weight:500;}
+  .item{
+    background:rgba(30,111,217,.18);border:1px solid rgba(95,179,255,.2);
+    border-radius:14px;padding:12px;margin-bottom:10px;
+  }
+  .item .meta{font-size:11px;color:var(--blue-5);opacity:.7;margin-top:6px;}
+  .item a{color:var(--blue-4);font-size:13px;text-decoration:none;}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+  .row input{margin-bottom:0;}
+  .big{font-size:26px;font-weight:800;color:var(--blue-4);}
+  .empty{font-size:13px;color:var(--blue-5);opacity:.6;padding:8px 0;}
+  .toast{
+    position:fixed;left:50%;bottom:30px;transform:translateX(-50%);
+    background:rgba(30,111,217,.95);color:#fff;padding:10px 18px;border-radius:20px;
+    font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;
+  }
+  .toast.show{opacity:1;}
+  .line-item{display:flex;gap:6px;margin-bottom:8px;align-items:center;}
+  .line-item input{margin-bottom:0;}
+  .line-item .pname{flex:2;}
+  .line-item .pqty{flex:1;}
+  .line-item .del{
+    flex:none;width:34px;height:34px;border-radius:10px;border:none;cursor:pointer;
+    background:rgba(244,67,54,.25);color:#ff8fa3;font-weight:700;
+  }
+  .item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .item-actions{display:flex;gap:6px;flex:none;}
+  .mini-btn{
+    padding:5px 10px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+    background:rgba(95,179,255,.18);color:var(--blue-5);border:1px solid rgba(95,179,255,.3);
+  }
+  .mini-btn.del{background:rgba(244,67,54,.18);color:#ff8fa3;border:1px solid rgba(244,67,54,.4);}
+  #panel-invoice .a4-wrap{background:#fff;border-radius:12px;padding:10px;overflow:auto;}
+  .a4-page{
+    width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:15mm;
+    box-sizing:border-box;color:#000;font-family:Arial,sans-serif;
+  }
+  .a4-page .title-box{border:2px solid #000;text-align:center;padding:10px;font-size:20px;font-weight:bold;margin-bottom:10px;}
+  .a4-page .info-row{display:flex;margin-bottom:10px;}
+  .a4-page .info-box{flex:1;border:1px solid #000;padding:10px;font-size:14px;display:flex;flex-direction:column;gap:5px;}
+  .a4-page .info-box.left{border-right:none;}
+  .a4-page .info-box.right{text-align:right;}
+  .a4-page .info-row input,.a4-page .invoice-details input,.a4-page td input,.a4-page .bank-info input{
+    width:100%;border:none;outline:none;font-family:inherit;font-size:14px;background:transparent;color:#000;padding:0;margin:0;border-radius:0;
+  }
+  .a4-page .info-box.right input{text-align:right;}
+  .a4-page .invoice-details{display:flex;border:2px solid #000;padding:10px;margin-bottom:10px;font-weight:bold;font-size:14px;align-items:center;}
+  .a4-page .invoice-details input{flex:1;}
+  .a4-page table{width:100%;border-collapse:collapse;font-size:14px;}
+  .a4-page th,.a4-page td{border:1px solid #000;padding:8px;text-align:center;}
+  .a4-page th{background:#f9f9f9;font-weight:bold;}
+  .a4-page td input{text-align:center;}
+  .a4-page .totals-table td{border:1px solid #000;padding:8px;font-weight:bold;}
+  .a4-page .iva-input{width:40px;text-align:center;font-weight:bold;}
+  .a4-page .bank-info{border:2px solid #000;padding:10px;margin-top:10px;display:flex;justify-content:space-between;font-weight:bold;font-size:16px;}
+  .a4-page .bank-info input{text-align:right;width:60%;font-size:16px;font-weight:bold;}
+  .a4-page .delete-btn{background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;padding:2px 8px;font-size:12px;}
+  @media print{
+    @page{size:A4;margin:0;}
+    body{background:#fff;margin:0;padding:0;}
+    .controls,.back,.toast,.drop-glow,.water-drop{display:none!important;}
+    .panel{display:none!important;}
+    .panel.active{display:block!important;}
+    .a4-wrap{padding:0;background:#fff;}
+    .a4-page{width:210mm;min-height:297mm;box-shadow:none;padding:15mm;margin:0;}
+    .a4-page .row-actions{display:none;}
+    .a4-page th:last-child,.a4-page td:last-child{display:none;}
+    tr{page-break-inside:avoid;page-break-after:auto;}
+    thead{display:table-header-group;}
+  }
+</style>
+</head>
+<body>
+<div class="drop-glow" id="dropGlow"></div>
+
+<header>
+  <h1>🌊 芙芙小助手</h1>
+  <p>点一下，水滴会落下</p>
+</header>
+
+<div class="grid" id="home">
+  <div class="card" onclick="openPanel('parking')">
+    <div class="icon">🅿️</div><div class="name">停车位</div><div class="desc">一键记录当前位置</div>
+  </div>
+  <div class="card" onclick="openPanel('notes')">
+    <div class="icon">📝</div><div class="name">笔记</div><div class="desc">进货单 / 订单</div>
+  </div>
+  <div class="card" onclick="openPanel('money')">
+    <div class="icon">💰</div><div class="name">存款</div><div class="desc">加减记录总存款</div>
+  </div>
+  <div class="card" onclick="openPanel('todo')">
+    <div class="icon">✅</div><div class="name">待办事项</div><div class="desc">时间 / 地点 / 照片</div>
+  </div>
+  <div class="card" onclick="openPanel('invoice')" style="grid-column:span 2;">
+    <div class="icon">🧾</div><div class="name">发票</div><div class="desc">生成 Factura 并导出 PDF</div>
+  </div>
+</div>
+
+<!-- 停车位 -->
+<section class="panel" id="panel-parking">
+  <div class="back" onclick="closePanel()">← 返回</div>
+  <h2>🅿️ 停车位</h2>
+  <button class="btn" onclick="recordParking()">📍 记录当前位置</button>
+  <p style="font-size:12px;color:var(--blue-5);opacity:.7;margin:10px 0 18px;">需要允许浏览器获取定位。记录会带上地图链接。</p>
+  <div id="parkingList"></div>
+</section>
+
+<!-- 笔记 -->
+<section class="panel" id="panel-notes">
+  <div class="back" onclick="closePanel()">← 返回</div>
+  <h2>📝 笔记</h2>
+  <select id="noteType">
+    <option value="进货单">进货单</option>
+    <option value="订单">订单</option>
+  </select>
+  <input id="noteTitle" placeholder="标题，比如：张三订货 / 周三进货">
+  <input id="noteRemark" placeholder="备注（可选）">
+  <div id="lineItems"></div>
+  <button class="btn ghost" onclick="addLineItem()" style="width:100%;margin-bottom:14px;">＋ 添加一行产品</button>
+  <button class="btn" onclick="saveNote()" style="width:100%;">保存这张单</button>
+  <div id="noteList" style="margin-top:22px;"></div>
+</section>
+
+<!-- 存款 -->
+<section class="panel" id="panel-money">
+  <div class="back" onclick="closePanel()">← 返回</div>
+  <h2>💰 存款</h2>
+  <div class="item">
+    <div style="font-size:12px;color:var(--blue-5);opacity:.75;">当前总存款</div>
+    <div class="big" id="totalMoney">¥0</div>
+  </div>
+  <div class="row">
+    <input id="moneyAmount" type="number" placeholder="金额，正数加，负数减">
+    <button class="btn" onclick="addMoney()">记录</button>
+  </div>
+  <input id="moneySource" placeholder="来源备注，比如：客人付款">
+  <div id="moneyList" style="margin-top:14px;"></div>
+</section>
+
+<!-- 待办 -->
+<section class="panel" id="panel-todo">
+  <div class="back" onclick="closePanel()">← 返回</div>
+  <h2>✅ 待办事项</h2>
+  <input id="todoTitle" placeholder="要做什么">
+  <input id="todoDate" type="datetime-local">
+  <input id="todoPlace" placeholder="地点（可选）">
+  <textarea id="todoRemark" placeholder="备注"></textarea>
+  <input id="todoPhoto" type="file" accept="image/*" capture="environment" style="padding:8px;">
+  <button class="btn" onclick="addTodo()">添加待办</button>
+  <div id="todoList" style="margin-top:18px;"></div>
+</section>
+
+<!-- 发票 -->
+<section class="panel" id="panel-invoice">
+  <div class="back" onclick="closePanel()">← 返回</div>
+  <h2>🧾 发票</h2>
+  <div class="controls" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+    <button class="btn ghost" onclick="addInvoiceRow()">➕ 添加一行产品</button>
+    <button class="btn" onclick="generatePDF()" style="background:linear-gradient(135deg,#007AFF,#5fb3ff);">📥 保存为 PDF</button>
+  </div>
+  <div class="a4-wrap">
+    <div class="a4-page" id="invoice-content">
+      <div class="title-box">*** FACTURA ***</div>
+      <div class="info-row">
+        <div class="info-box left">
+          <input type="text" id="sender-name" placeholder="NOMBRE" value="YONG ZHANG" oninput="saveInvoiceData()">
+          <input type="text" id="sender-address1" placeholder="DIRECCIÓN" value="PASEO FARNESIO, 47" oninput="saveInvoiceData()">
+          <input type="text" id="sender-address2" placeholder="CIUDAD" value="47013-VALLADOLID" oninput="saveInvoiceData()">
+          <input type="text" id="sender-nie" placeholder="NIE/CIF" value="NIE:Y4831054X" oninput="saveInvoiceData()">
+          <input type="text" id="sender-tel" placeholder="TELÉFONO" value="TEL: 650721401" oninput="saveInvoiceData()">
+        </div>
+        <div class="info-box right">
+          <input type="text" id="receiver-name" placeholder="EMPRESA" value="MONTY" oninput="saveInvoiceData()">
+          <input type="text" id="receiver-address1" placeholder="DIRECCIÓN" value="AVD. GIJON KM 195" oninput="saveInvoiceData()">
+          <input type="text" id="receiver-address2" placeholder="CIUDAD" value="47610 ZARATAN (VALLADOLID)" oninput="saveInvoiceData()">
+          <input type="text" id="receiver-cif" placeholder="CIF" value="CIF:ESB47291117" oninput="saveInvoiceData()">
+          <input type="text" id="receiver-tel" placeholder="TELÉFONO" value="TEL: 983358099" oninput="saveInvoiceData()">
+        </div>
+      </div>
+      <div class="invoice-details">
+        <span>Fecha Factura</span>
+        <input type="date" id="invoice-date" style="max-width:150px;" oninput="saveInvoiceData()">
+        <span style="margin-left:auto;">Nº Factura</span>
+        <input type="text" id="invoice-number" style="max-width:150px;text-align:right;" placeholder="20260003" oninput="saveInvoiceData()">
+      </div>
+      <table id="product-table">
+        <thead>
+          <tr>
+            <th width="15%">Referencia</th>
+            <th width="35%">Descripción artículo</th>
+            <th width="15%">Cantidad</th>
+            <th width="15%">Precio Unit.</th>
+            <th width="15%">Subtotal</th>
+            <th width="5%">操作</th>
+          </tr>
+        </thead>
+        <tbody id="product-rows"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="text-align:center;font-weight:bold;">Subtotal / Cantidad Total</td>
+            <td id="total-qty" style="text-align:center;font-weight:bold;">0</td>
+            <td></td>
+            <td id="base-imponible-display" style="text-align:right;font-weight:bold;">0,00 €</td>
+            <td style="display:none;"></td>
+          </tr>
+          <tr>
+            <td colspan="4" style="text-align:center;font-weight:bold;">Base Imponible</td>
+            <td id="base-imponible-calculation" style="text-align:right;font-weight:bold;">0,00 €</td>
+            <td style="display:none;"></td>
+          </tr>
+          <tr>
+            <td colspan="3" style="text-align:center;font-weight:bold;">IVA</td>
+            <td style="text-align:right;">
+              <input type="number" id="iva-rate" class="iva-input" value="21" min="0" step="0.01" oninput="calculateInvoiceTotals()"> %
+            </td>
+            <td id="iva-amount" style="text-align:right;font-weight:bold;">0,00 €</td>
+            <td style="display:none;"></td>
+          </tr>
+          <tr>
+            <td colspan="4" style="text-align:center;font-weight:bold;font-size:16px;">TOTAL</td>
+            <td id="total-amount" style="text-align:right;font-weight:bold;font-size:16px;">0,00 €</td>
+            <td style="display:none;"></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="bank-info">
+        <span>CUENTA BANCARIA:</span>
+        <input type="text" id="bank-account" value="ES9430350253812530056582" placeholder="IBAN" oninput="saveInvoiceData()">
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========== 基础工具 ========== */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(e){ return d; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer); t._timer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ========== 水滴特效 ========== */
+const glow = $('dropGlow');
+function spawnDrop(x, y){
+  const size = 14 + Math.random()*16;
+  const d = document.createElement('div');
+  d.className = 'water-drop';
+  d.style.left = x + 'px';
+  d.style.top = y + 'px';
+  d.style.width = size + 'px';
+  d.style.height = size * 1.2 + 'px';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(), 750);
+}
+function moveGlow(x, y){
+  glow.style.left = x + 'px';
+  glow.style.top = y + 'px';
+  glow.style.opacity = 1;
+}
+window.addEventListener('mousemove', e=> moveGlow(e.clientX, e.clientY));
+window.addEventListener('mouseleave', ()=> glow.style.opacity = 0);
+window.addEventListener('touchmove', e=>{
+  const t = e.touches[0]; moveGlow(t.clientX, t.clientY);
+}, {passive:true});
+window.addEventListener('touchend', ()=> glow.style.opacity = 0);
+document.addEventListener('pointerdown', e=>{
+  if(e.target.closest('.a4-page')) return;
+  spawnDrop(e.clientX, e.clientY);
+  if(Math.random() > .5){
+    setTimeout(()=> spawnDrop(e.clientX + (Math.random()*40-20), e.clientY + (Math.random()*20-10)), 80);
+  }
+});
+
+/* ========== 面板切换 ========== */
+function openPanel(name){
+  $('home').style.display = 'none';
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  $('panel-' + name).classList.add('active');
+  if(name === 'parking') renderParking();
+  if(name === 'notes') renderNotes();
+  if(name === 'money') renderMoney();
+  if(name === 'todo') renderTodo();
+  if(name === 'invoice') { if(!$('product-rows').children.length) initInvoice(); }
+}
+function closePanel(){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  $('home').style.display = 'grid';
+}
+
+/* ========== 停车位 ========== */
+function recordParking(){
+  if(!navigator.geolocation){ toast('这个浏览器不支持定位'); return; }
+  toast('正在获取位置…');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const {latitude:lat, longitude:lng} = pos.coords;
+    const list = store.get('parking', []);
+    list.unshift({
+      lat, lng,
+      time: new Date().toLocaleString('zh-CN'),
+      gmap: `https://www.google.com/maps?q=${lat},${lng}`,
+      amap: `https://maps.apple.com/?ll=${lat},${lng}`
+    });
+    store.set('parking', list.slice(0, 50));
+    renderParking(); toast('已记录停车位置');
+  }, err=>{ toast('定位失败：' + err.message); }, {enableHighAccuracy:true, timeout:10000});
+}
+function deleteParking(i){
+  if(!confirm('删除这条停车记录？')) return;
+  const list = store.get('parking', []);
+  list.splice(i, 1);
+  store.set('parking', list);
+  renderParking(); toast('已删除');
+}
+function renderParking(){
+  const list = store.get('parking', []);
+  $('parkingList').innerHTML = list.length ? list.map((p, i)=>`
+    <div class="item">
+      <div class="item-head">
+        <div>
+          <div>📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
+          <div class="meta">${esc(p.time)}</div>
+        </div>
+        <div class="item-actions">
+          <button class="mini-btn del" onclick="deleteParking(${i})">删除</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="${p.gmap}" target="_blank">Google 地图</a>
+        <a href="${p.amap}" target="_blank">苹果地图</a>
+      </div>
+    </div>`).join('') : '<div class="empty">还没有停车记录</div>';
+}
+
+/* ========== 笔记 ========== */
+function addLineItem(name='', qty=''){
+  const wrap = document.createElement('div');
+  wrap.className = 'line-item';
+  wrap.innerHTML = `
+    <input class="pname" placeholder="产品名字" value="${esc(name)}">
+    <input class="pqty" type="number" placeholder="数量" value="${esc(qty)}" min="0">
+    <button class="del" onclick="this.parentNode.remove()">✕</button>
+  `;
+  $('lineItems').appendChild(wrap);
+}
+function saveNote(){
+  const type = $('noteType').value;
+  const title = $('noteTitle').value.trim();
+  const remark = $('noteRemark').value.trim();
+  const lines = [...document.querySelectorAll('#lineItems .line-item')].map(row=>{
+    return {
+      name: row.querySelector('.pname').value.trim(),
+      qty: row.querySelector('.pqty').value.trim()
+    };
+  }).filter(l=> l.name || l.qty);
+  if(!title){ toast('写个标题吧'); return; }
+  if(!lines.length){ toast('至少加一行产品'); return; }
+  const list = store.get('notes', []);
+  list.unshift({ type, title, remark, lines, time: new Date().toLocaleString('zh-CN') });
+  store.set('notes', list);
+  $('noteTitle').value = ''; $('noteRemark').value = '';
+  $('lineItems').innerHTML = '';
+  renderNotes(); toast('已保存这张单');
+}
+function deleteNote(i){
+  if(!confirm('删除这张单？')) return;
+  const list = store.get('notes', []);
+  list.splice(i, 1);
+  store.set('notes', list);
+  renderNotes(); toast('已删除');
+}
+function renderNotes(){
+  const list = store.get('notes', []);
+  $('noteList').innerHTML = list.length ? list.map((n, i)=>`
+    <div class="item">
+      <div class="item-head">
+        <div>
+          <strong>【${esc(n.type)}】${esc(n.title)}</strong>
+          <div class="meta">${esc(n.time)} · 共 ${n.lines.length} 项</div>
+          ${n.remark ? `<div style="font-size:13px;margin-top:6px;opacity:.85;">备注：${esc(n.remark)}</div>` : ''}
+        </div>
+        <div class="item-actions">
+          <button class="mini-btn" onclick="viewNote(${i})">查看</button>
+          <button class="mini-btn del" onclick="deleteNote(${i})">删除</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty">还没有笔记</div>';
+}
+function viewNote(i){
+  const n = store.get('notes', [])[i];
+  if(!n) return;
+  const detail = n.lines.map(l=>`${l.name} × ${l.qty || '?'}`).join('\n');
+  alert(`【${n.type}】${n.title}\n时间：${n.time}\n${n.remark ? '备注：' + n.remark + '\n' : ''}\n产品清单：\n${detail}`);
+}
+
+/* ========== 存款 ========== */
+function addMoney(){
+  const amt = parseFloat($('moneyAmount').value);
+  if(isNaN(amt)){ toast('请输入金额'); return; }
+  const src = $('moneySource').value.trim();
+  const list = store.get('money', []);
+  list.unshift({amt, src, time: new Date().toLocaleString('zh-CN')});
+  store.set('money', list);
+  $('moneyAmount').value = $('moneySource').value = '';
+  renderMoney(); toast('已记录');
+}
+function deleteMoney(i){
+  if(!confirm('删除这条存款记录？总额会重新计算。')) return;
+  const list = store.get('money', []);
+  list.splice(i, 1);
+  store.set('money', list);
+  renderMoney(); toast('已删除');
+}
+function renderMoney(){
+  const list = store.get('money', []);
+  const total = list.reduce((s, m)=> s + m.amt, 0);
+  $('totalMoney').textContent = '¥' + total.toFixed(2);
+  $('moneyList').innerHTML = list.length ? list.map((m, i)=>`
+    <div class="item">
+      <div class="item-head">
+        <div>
+          <span style="color:${m.amt>=0?'#7dffb0':'#ff8fa3'};font-weight:700;">${m.amt>=0?'+':''}${m.amt.toFixed(2)}</span>
+          <span class="meta" style="margin-left:8px;">${esc(m.time)}</span>
+          ${m.src ? `<div style="font-size:13px;margin-top:4px;opacity:.85;">${esc(m.src)}</div>` : ''}
+        </div>
+        <div class="item-actions">
+          <button class="mini-btn del" onclick="deleteMoney(${i})">删除</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty">还没有记录</div>';
+}
+
+/* ========== 待办 ========== */
+function addTodo(){
+  const title = $('todoTitle').value.trim();
+  if(!title){ toast('写点要做什么'); return; }
+  const item = {
+    title,
+    date: $('todoDate').value,
+    place: $('todoPlace').value.trim(),
+    remark: $('todoRemark').value.trim(),
+    done: false,
+    time: new Date().toLocaleString('zh-CN')
+  };
+  const file = $('todoPhoto').files[0];
+  const save = photo => {
+    item.photo = photo;
+    const list = store.get('todo', []);
+    list.unshift(item);
+    store.set('todo', list);
+    $('todoTitle').value = $('todoDate').value = $('todoPlace').value = $('todoRemark').value = '';
+    $('todoPhoto').value = '';
+    renderTodo(); toast('待办已添加');
+  };
+  file ? fileToDataURL(file, save) : save('');
+}
+function toggleTodo(i){
+  const list = store.get('todo', []);
+  list[i].done = !list[i].done;
+  store.set('todo', list); renderTodo();
+}
+function deleteTodo(i){
+  if(!confirm('删除这条待办？')) return;
+  const list = store.get('todo', []);
+  list.splice(i, 1);
+  store.set('todo', list);
+  renderTodo(); toast('已删除');
+}
+function renderTodo(){
+  const list = store.get('todo', []);
+  $('todoList').innerHTML = list.length ? list.map((t,i)=>`
+    <div class="item" style="${t.done?'opacity:.5;':''}">
+      <div class="item-head">
+        <div style="display:flex;gap:10px;align-items:flex-start;flex:1;">
+          <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo(${i})" style="width:18px;height:18px;margin:2px 0 0;flex:none;">
+          <div style="flex:1;">
+            <div style="font-weight:600;${t.done?'text-decoration:line-through;':''}">${esc(t.title)}</div>
+            ${t.date ? `<div class="meta">🕒 ${esc(t.date.replace('T',' '))}</div>` : ''}
+            ${t.place ? `<div class="meta">📍 ${esc(t.place)}</div>` : ''}
+            ${t.remark ? `<div style="font-size:13px;margin-top:4px;opacity:.85;">${esc(t.remark)}</div>` : ''}
+            ${t.photo ? `<img src="${t.photo}" style="max-width:100%;border-radius:10px;margin-top:8px;">` : ''}
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="mini-btn del" onclick="deleteTodo(${i})">删除</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty">还没有待办</div>';
+}
+
+function fileToDataURL(file, cb){
+  const reader = new FileReader();
+  reader.onload = e => cb(e.target.result);
+  reader.readAsDataURL(file);
+}
+
+/* ========== 发票 ========== */
+const invoiceInputs = [
+  'sender-name','sender-address1','sender-address2','sender-nie','sender-tel',
+  'receiver-name','receiver-address1','receiver-address2','receiver-cif','receiver-tel',
+  'invoice-date','invoice-number','bank-account','iva-rate'
+];
+function initInvoice(){
+  invoiceInputs.forEach(id=>{
+    const saved = localStorage.getItem('factura_' + id);
+    if(saved !== null && $(id)) $(id).value = saved;
+  });
+  if(!$('invoice-date').value){
+    $('invoice-date').value = new Date().toISOString().split('T')[0];
+  }
+  if(!$('product-rows').children.length){
+    addInvoiceRow({ref:'T1', desc:'POLO BLANCO MAPFRE', qty:250, price:3.50});
+    addInvoiceRow({ref:'T1', desc:'POLO MC PORTUARIO TENERIFE', qty:100, price:6.00});
+  }
+  calculateInvoiceTotals();
+}
+function saveInvoiceData(){
+  invoiceInputs.forEach(id=>{
+    if($(id)) localStorage.setItem('factura_' + id, $(id).value);
+  });
+  calculateInvoiceTotals();
+}
+function addInvoiceRow(data = { ref:'', desc:'', qty:'', price:'' }){
+  const tbody = $('product-rows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="item-ref" value="${esc(data.ref)}" placeholder="Ref"></td>
+    <td><input type="text" class="item-desc" value="${esc(data.desc)}" placeholder="Descripción"></td>
+    <td><input type="number" class="item-qty" value="${esc(data.qty)}" placeholder="0" min="0" oninput="calculateInvoiceTotals()"></td>
+    <td><input type="number" class="item-price" value="${esc(data.price)}" placeholder="0.00" min="0" step="0.01" oninput="calculateInvoiceTotals()"></td>
+    <td class="item-subtotal" style="text-align:right;">0,00 €</td>
+    <td class="row-actions"><button class="delete-btn" onclick="deleteInvoiceRow(this)">X</button></td>
+  `;
+  tbody.appendChild(tr);
+  calculateInvoiceTotals();
+}
+function deleteInvoiceRow(btn){
+  const row = btn.parentNode.parentNode;
+  row.parentNode.removeChild(row);
+  calculateInvoiceTotals();
+}
+function formatCurrency(num){ return num.toFixed(2).replace('.', ',') + ' €'; }
+function calculateInvoiceTotals(){
+  let totalQty = 0, base = 0;
+  document.querySelectorAll('#product-rows tr').forEach(row=>{
+    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+    const sub = qty * price;
+    row.querySelector('.item-subtotal').innerText = formatCurrency(sub);
+    totalQty += qty; base += sub;
+  });
+  $('total-qty').innerText = totalQty;
+  $('base-imponible-display').innerText = formatCurrency(base);
+  $('base-imponible-calculation').innerText = formatCurrency(base);
+  const ivaRate = parseFloat($('iva-rate').value) || 0;
+  const ivaAmount = base * (ivaRate / 100);
+  $('iva-amount').innerText = formatCurrency(ivaAmount);
+  $('total-amount').innerText = formatCurrency(base + ivaAmount);
+}
+function generatePDF(){
+  const element = $('invoice-content');
+  const invoiceNum = $('invoice-number').value || 'Factura';
+  const fileName = `Factura_${invoiceNum}.pdf`;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if(isIOS && navigator.userAgent.indexOf('MicroMessenger') > -1){
+    alert("苹果手机如果在微信里打开可能无法直接下载。\n\n请点击右上角「...」，选择「在默认浏览器中打开」，然后再点击保存。");
+    return;
+  }
+  const opt = {
+    margin: 0,
+    filename: fileName,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+  html2pdf().set(opt).from(element).save().then(()=>{}).catch(err=>{
+    console.error('生成失败', err);
+    alert("生成 PDF 失败，将调起系统打印。请在弹出的界面选择「存储为 PDF」。");
+    window.print();
+  });
+}
+</script>
+</body>
+</html>
