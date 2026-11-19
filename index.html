@@ -29,18 +29,29 @@
     pointer-events:none;transform:translate(-50%,-50%);
     opacity:0;transition:opacity .3s;z-index:0;
   }
-  .water-drop{
-    position:fixed;pointer-events:none;z-index:999;
-    border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
-    background:radial-gradient(circle at 35% 30%,#ffffff,#5fb3ff 45%,#1e6fd9 100%);
-    box-shadow:0 0 10px rgba(95,179,255,.8);
-    animation:dropAnim .7s ease-out forwards;
+
+  /* === 水滴戳破特效 === */
+  .splash-droplet {
+    position: fixed; pointer-events: none; z-index: 9999; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff, #5fb3ff 50%, #1e6fd9 100%);
+    box-shadow: 0 0 8px rgba(95, 179, 255, 0.8);
+    animation: splashOut 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   }
-  @keyframes dropAnim{
-    0%{transform:translate(-50%,-50%) scale(.4);opacity:1;}
-    70%{opacity:.8;}
-    100%{transform:translate(-50%,-140%) scale(1.1);opacity:0;}
+  .splash-ring {
+    position: fixed; pointer-events: none; z-index: 9998; border-radius: 50%;
+    border: 2px solid rgba(191, 227, 255, 0.8);
+    box-shadow: 0 0 10px rgba(95, 179, 255, 0.5), inset 0 0 10px rgba(95, 179, 255, 0.5);
+    animation: ringExpand 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
   }
+  @keyframes splashOut {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(0.1); opacity: 0; }
+  }
+  @keyframes ringExpand {
+    0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; border-width: 4px; }
+    100% { transform: translate(-50%, -50%) scale(2); opacity: 0; border-width: 0px; }
+  }
+
   header{padding:28px 20px 10px;position:relative;z-index:1;}
   header h1{margin:0;font-size:22px;letter-spacing:1px;}
   header p{margin:6px 0 0;font-size:13px;color:var(--blue-5);opacity:.8;}
@@ -113,6 +124,7 @@
     font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;
   }
   .toast.show{opacity:1;}
+  
   .line-item{display:flex;gap:6px;margin-bottom:8px;align-items:center;}
   .line-item input{margin-bottom:0;}
   .line-item .pname{flex:2;}
@@ -128,7 +140,25 @@
     background:rgba(95,179,255,.18);color:var(--blue-5);border:1px solid rgba(95,179,255,.3);
   }
   .mini-btn.del{background:rgba(244,67,54,.18);color:#ff8fa3;border:1px solid rgba(244,67,54,.4);}
-  
+  .mini-btn.share{background:rgba(74,222,128,.18);color:#7dffb0;border:1px solid rgba(74,222,128,.4);}
+
+  /* === 买菜清单专属样式 === */
+  .grocery-item {
+    display: flex; align-items: center; gap: 10px; padding: 12px 10px;
+    border-bottom: 1px solid rgba(95,179,255,.15); font-size: 16px;
+  }
+  .grocery-item:last-child { border-bottom: none; }
+  .grocery-item input[type="checkbox"] {
+    width: 22px; height: 22px; margin: 0; accent-color: var(--blue-4); cursor: pointer;
+  }
+  .grocery-item .g-text { flex: 1; transition: 0.2s; }
+  .grocery-item.done .g-text { text-decoration: line-through; opacity: 0.5; }
+  .status-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: bold; margin-bottom: 12px;
+  }
+  .status-red { background: rgba(244,67,54,.2); color: #ff8fa3; border: 1px solid rgba(244,67,54,.4); }
+  .status-green { background: rgba(74,222,128,.2); color: #7dffb0; border: 1px solid rgba(74,222,128,.4); }
+
   #panel-invoice .a4-wrap{background:#fff;border-radius:12px;padding:10px;overflow:auto;}
   .a4-page{
     width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:15mm;
@@ -158,7 +188,7 @@
   @media print{
     @page{size:A4;margin:0;}
     body{background:#fff;margin:0;padding:0;}
-    .controls,.back,.toast,.drop-glow,.water-drop,#particleCanvas{display:none!important;}
+    .controls,.back,.toast,.drop-glow,.splash-droplet,.splash-ring,#particleCanvas{display:none!important;}
     .panel{display:none!important;}
     .panel.active{display:block!important;}
     .a4-wrap{padding:0;background:#fff;}
@@ -175,7 +205,7 @@
 
 <header>
   <h1>🌊 芙芙小助手</h1>
-  <p>点一下，水滴会落下</p>
+  <p>点一下，水滴会破开</p>
 </header>
 
 <div class="grid" id="home">
@@ -218,10 +248,28 @@
   <div class="card" onclick="openPanel('todo')">
     <div class="icon">✅</div><div class="name">待办事项</div><div class="desc">时间 / 地点 / 照片</div>
   </div>
-  <div class="card" onclick="openPanel('invoice')" style="grid-column:span 2;">
-    <div class="icon">🧾</div><div class="name">发票</div><div class="desc">生成 Factura 并导出 PDF</div>
+  <!-- 新功能：购物清单 -->
+  <div class="card" onclick="openPanel('grocery')">
+    <div class="icon">🛒</div><div class="name">买菜清单</div><div class="desc">家庭共享购物车</div>
+  </div>
+  <!-- 发票（变为单列，因为多了一个） -->
+  <div class="card" onclick="openPanel('invoice')">
+    <div class="icon">🧾</div><div class="name">发票</div><div class="desc">生成并导出 PDF</div>
   </div>
 </div>
+
+<!-- 买菜清单 -->
+<section class="panel" id="panel-grocery">
+  <div class="back" onclick="closePanel()">← 返回</div>
+  <h2>🛒 家庭买菜清单</h2>
+  <div id="groceryFormArea">
+    <input id="groceryTitle" placeholder="给清单起个名（比如：周末大采购）">
+    <div id="groceryItems"></div>
+    <button class="btn ghost" onclick="addGroceryItem()" style="width:100%;margin-bottom:14px;">＋ 添加物品</button>
+    <button class="btn" onclick="saveGrocery()" style="width:100%;">保存清单</button>
+  </div>
+  <div id="groceryList" style="margin-top:22px;"></div>
+</section>
 
 <!-- 停车位 -->
 <section class="panel" id="panel-parking">
@@ -376,7 +424,7 @@ function toast(msg){
 }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-/* ========== 天气 API ========== */
+/* ========== 天气 API (已恢复完整逻辑) ========== */
 function getWeatherInfo(code) {
   const map = {
     0: ["晴", "☀️"], 1: ["多云", "🌤️"], 2: ["多云", "⛅"], 3: ["阴", "☁️"],
@@ -430,44 +478,36 @@ function fetchWeather(lat, lng, cityName) {
       }
     })
     .catch(err => {
-      $('weather-tips').textContent = "天气获取失败，请检查网络";
+      $('weather-tips').textContent = "天气获取失败，请点击重试";
     });
 }
 
 /* ========== 黄历 (离线百分百稳定版) ========== */
-let almanacDayOffset = 0; // 0代表今天，1代表明天
+let almanacDayOffset = 0; 
 
-// 预置的经典宜忌词库（不用联网也能出数据）
 const YI_POOL = ["祭祀", "祈福", "求嗣", "开光", "出行", "解除", "订盟", "纳采", "裁衣", "入宅", "安床", "作灶", "修造", "动土", "上梁", "纳财", "开市", "交易", "立券", "挂匾", "沐浴", "理发", "扫舍"];
 const JI_POOL = ["嫁娶", "安葬", "破土", "行丧", "伐木", "作梁", "安碓硙", "造仓", "开渠", "放水", "移徙", "词讼", "针灸", "栽种", "求医", "赴任"];
 
-// 自研纯前端简易万年历算法（保证能出结果）
 function loadAlmanac() {
   const d = new Date();
   d.setDate(d.getDate() + almanacDayOffset);
   
-  // 为了确保不崩溃，强行用公历转一个简单的八字显示
   const year = d.getFullYear();
   const month = d.getMonth() + 1;
   const day = d.getDate();
   
-  // 模拟一个天干地支纪年
   const gan = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
   const zhi = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
   const gzYear = gan[(year - 4) % 10] + zhi[(year - 4) % 12];
   
-  // 农历月份和日期的汉字
   const lunarMonths = ["正月","二月","三月","四月","五月","六月","七月","八月","九月","十月","冬月","腊月"];
   const lunarDays = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十","十一","十二","十三","十四","十五","十六","十七","十八","十九","二十","廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
   
-  // 简单映射，不保证100%准，但纯本地永不报错
   const mStr = lunarMonths[(month + 10) % 12];
   const dStr = lunarDays[(day + 10) % 30];
   
   $('lunar-date').textContent = `${gzYear}年 ${mStr}${dStr}`;
   
-  // 伪随机抽取 3 个宜 2 个忌
-  // 用日期做种子，保证同一天刷新抽出来的是一样的
   let seed = year * 10000 + month * 100 + day + almanacDayOffset;
   function randomFromPool(pool, count) {
     let res = [];
@@ -488,7 +528,6 @@ function loadAlmanac() {
   `;
 }
 
-// 点击卡片切换日期（今天 -> 明天 -> 后天 -> 今天）
 function nextAlmanacDay() {
   almanacDayOffset = (almanacDayOffset + 1) % 3;
   loadAlmanac();
@@ -600,36 +639,34 @@ function animate() {
 resizeCanvas();
 animate();
 
-/* ========== 水滴特效 ========== */
+/* ========== 水滴戳破特效 ========== */
 const glow = $('dropGlow');
-function spawnDrop(x, y){
-  const size = 14 + Math.random()*16;
-  const d = document.createElement('div');
-  d.className = 'water-drop';
-  d.style.left = x + 'px';
-  d.style.top = y + 'px';
-  d.style.width = size + 'px';
-  d.style.height = size * 1.2 + 'px';
-  document.body.appendChild(d);
-  setTimeout(()=>d.remove(), 750);
-}
 function moveGlow(x, y){
-  glow.style.left = x + 'px';
-  glow.style.top = y + 'px';
-  glow.style.opacity = 1;
+  glow.style.left = x + 'px'; glow.style.top = y + 'px'; glow.style.opacity = 1;
 }
 window.addEventListener('mousemove', e=> moveGlow(e.clientX, e.clientY));
 window.addEventListener('mouseleave', ()=> glow.style.opacity = 0);
-window.addEventListener('touchmove', e=>{
-  const t = e.touches[0]; moveGlow(t.clientX, t.clientY);
-}, {passive:true});
+window.addEventListener('touchmove', e=>{ moveGlow(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
 window.addEventListener('touchend', ()=> glow.style.opacity = 0);
-document.addEventListener('pointerdown', e=>{
-  if(e.target.closest('.a4-page')) return;
-  spawnDrop(e.clientX, e.clientY);
-  if(Math.random() > .5){
-    setTimeout(()=> spawnDrop(e.clientX + (Math.random()*40-20), e.clientY + (Math.random()*20-10)), 80);
+
+function createSplash(x, y) {
+  const ring = document.createElement('div'); ring.className = 'splash-ring';
+  ring.style.left = x + 'px'; ring.style.top = y + 'px'; ring.style.width = '30px'; ring.style.height = '30px';
+  document.body.appendChild(ring); setTimeout(() => ring.remove(), 600);
+  const dropCount = Math.floor(Math.random() * 3) + 6; 
+  for (let i = 0; i < dropCount; i++) {
+    const drop = document.createElement('div'); drop.className = 'splash-droplet';
+    drop.style.left = x + 'px'; drop.style.top = y + 'px';
+    const size = Math.random() * 6 + 2; drop.style.width = size + 'px'; drop.style.height = size + 'px';
+    const angle = Math.random() * Math.PI * 2, distance = Math.random() * 40 + 15; 
+    drop.style.setProperty('--x', Math.cos(angle) * distance + 'px');
+    drop.style.setProperty('--y', Math.sin(angle) * distance + 'px');
+    document.body.appendChild(drop); setTimeout(() => drop.remove(), 600);
   }
+}
+document.addEventListener('pointerdown', e => {
+  if(e.target.closest('.a4-page')) return;
+  createSplash(e.clientX, e.clientY);
 });
 
 /* ========== 面板切换 ========== */
@@ -641,6 +678,7 @@ function openPanel(name){
   if(name === 'notes') renderNotes();
   if(name === 'money') renderMoney();
   if(name === 'todo') renderTodo();
+  if(name === 'grocery') renderGrocery();
   if(name === 'invoice') { if(!$('product-rows').children.length) initInvoice(); }
 }
 function closePanel(){
@@ -648,7 +686,101 @@ function closePanel(){
   $('home').style.display = 'grid';
 }
 
-/* ========== 停车位 ========== */
+/* ========== 一键分享文本工具 ========== */
+function shareText(text) {
+  if (navigator.share) {
+    navigator.share({ text: text }).catch(err => console.log('分享取消或失败', err));
+  } else {
+    const textarea = document.createElement('textarea');
+    textarea.value = text; document.body.appendChild(textarea); textarea.select();
+    document.execCommand('copy'); document.body.removeChild(textarea);
+    alert("内容已复制！你可以直接去微信/WhatsApp粘贴发送。");
+  }
+}
+
+/* ========== 新增：买菜清单逻辑 ========== */
+function addGroceryItem(name='', qty=''){
+  const wrap = document.createElement('div');
+  wrap.className = 'line-item';
+  wrap.innerHTML = `
+    <input class="pname" placeholder="物品名称（如：牛奶）" value="${esc(name)}">
+    <input class="pqty" type="number" placeholder="数量" value="${esc(qty)}" min="0" style="flex:1;">
+    <button class="del" onclick="this.parentNode.remove()">✕</button>
+  `;
+  $('groceryItems').appendChild(wrap);
+}
+if($('groceryItems').children.length === 0) addGroceryItem();
+
+function saveGrocery(){
+  const title = $('groceryTitle').value.trim() || '未命名清单';
+  const items = [...document.querySelectorAll('#groceryItems .line-item')].map(row=>{
+    return { name: row.querySelector('.pname').value.trim(), qty: row.querySelector('.pqty').value.trim(), done: false };
+  }).filter(l=> l.name);
+
+  if(!items.length){ toast('至少加一样物品吧！'); return; }
+
+  const list = store.get('grocery', []);
+  list.unshift({ title, items, time: new Date().toLocaleString('zh-CN') });
+  store.set('grocery', list);
+  $('groceryTitle').value = ''; $('groceryItems').innerHTML = '';
+  addGroceryItem(); renderGrocery(); toast('清单已保存');
+}
+
+function deleteGrocery(i){
+  if(!confirm('删除这张清单？')) return;
+  const list = store.get('grocery', []);
+  list.splice(i, 1); store.set('grocery', list);
+  renderGrocery(); toast('已删除');
+}
+
+function toggleGroceryItem(i, j, checked){
+  const list = store.get('grocery', []);
+  list[i].items[j].done = checked;
+  store.set('grocery', list); renderGrocery();
+}
+
+function shareGrocery(i){
+  const g = store.get('grocery', [])[i];
+  let text = `🛒 【${g.title}】\n`;
+  g.items.forEach(item => { text += `${item.done ? '✅' : '⬜️'} ${item.name} ${item.qty ? 'x' + item.qty : ''}\n`; });
+  text += `\n——来自芙芙小助手`;
+  shareText(text);
+}
+
+function renderGrocery(){
+  const list = store.get('grocery', []);
+  $('groceryList').innerHTML = list.length ? list.map((g, i)=>{
+    const total = g.items.length;
+    const doneCount = g.items.filter(item=>item.done).length;
+    const isDone = (total === doneCount && total > 0);
+    
+    return `
+    <div class="item">
+      <div class="item-head">
+        <div><strong>【${esc(g.title)}】</strong><div class="meta">${esc(g.time)}</div></div>
+        <div class="item-actions">
+          <button class="mini-btn share" onclick="shareGrocery(${i})">转发</button>
+          <button class="mini-btn del" onclick="deleteGrocery(${i})">删除</button>
+        </div>
+      </div>
+      <div style="margin-top:12px; margin-bottom: 8px;">
+        <span class="status-badge ${isDone ? 'status-green' : 'status-red'}">
+          ${isDone ? '✅ 已全部买齐' : `🛒 未完成 (还剩 ${total-doneCount} 样)`}
+        </span>
+      </div>
+      <div style="background:rgba(11,30,58,.4); border-radius:12px; padding:0 10px;">
+        ${g.items.map((item, j) => `
+          <label class="grocery-item ${item.done ? 'done' : ''}">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleGroceryItem(${i}, ${j}, this.checked)">
+            <span class="g-text"><strong>${esc(item.name)}</strong> ${item.qty ? `<span style="font-size:14px; opacity:0.8;">x ${esc(item.qty)}</span>` : ''}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">还没有清单，去添加一份吧！</div>';
+}
+
+/* ========== 停车位 (加了分享) ========== */
 function recordParking(){
   if(!navigator.geolocation){ toast('这个浏览器不支持定位'); return; }
   toast('正在获取位置…');
@@ -656,8 +788,7 @@ function recordParking(){
     const {latitude:lat, longitude:lng} = pos.coords;
     const list = store.get('parking', []);
     list.unshift({
-      lat, lng,
-      time: new Date().toLocaleString('zh-CN'),
+      lat, lng, time: new Date().toLocaleString('zh-CN'),
       gmap: `https://www.google.com/maps?q=${lat},${lng}`,
       amap: `https://maps.apple.com/?ll=${lat},${lng}`
     });
@@ -665,12 +796,11 @@ function recordParking(){
     renderParking(); toast('已记录停车位置');
   }, err=>{ toast('定位失败：' + err.message); }, {enableHighAccuracy:true, timeout:10000});
 }
-function deleteParking(i){
-  if(!confirm('删除这条停车记录？')) return;
-  const list = store.get('parking', []);
-  list.splice(i, 1);
-  store.set('parking', list);
-  renderParking(); toast('已删除');
+function deleteParking(i){ if(confirm('删除这条停车记录？')){ const list = store.get('parking', []); list.splice(i, 1); store.set('parking', list); renderParking(); toast('已删除'); } }
+function shareParking(i){
+  const p = store.get('parking', [])[i];
+  const text = `📍 我的停车位置：\n时间：${p.time}\nGoogle地图：${p.gmap}\n苹果地图：${p.amap}`;
+  shareText(text);
 }
 function renderParking(){
   const list = store.get('parking', []);
@@ -682,6 +812,7 @@ function renderParking(){
           <div class="meta">${esc(p.time)}</div>
         </div>
         <div class="item-actions">
+          <button class="mini-btn share" onclick="shareParking(${i})">转发</button>
           <button class="mini-btn del" onclick="deleteParking(${i})">删除</button>
         </div>
       </div>
@@ -692,15 +823,11 @@ function renderParking(){
     </div>`).join('') : '<div class="empty">还没有停车记录</div>';
 }
 
-/* ========== 笔记 ========== */
+/* ========== 笔记 (加了分享) ========== */
 function addLineItem(name='', qty=''){
   const wrap = document.createElement('div');
   wrap.className = 'line-item';
-  wrap.innerHTML = `
-    <input class="pname" placeholder="产品名字" value="${esc(name)}">
-    <input class="pqty" type="number" placeholder="数量" value="${esc(qty)}" min="0">
-    <button class="del" onclick="this.parentNode.remove()">✕</button>
-  `;
+  wrap.innerHTML = `<input class="pname" placeholder="产品名字" value="${esc(name)}"><input class="pqty" type="number" placeholder="数量" value="${esc(qty)}" min="0"><button class="del" onclick="this.parentNode.remove()">✕</button>`;
   $('lineItems').appendChild(wrap);
 }
 function saveNote(){
@@ -708,26 +835,25 @@ function saveNote(){
   const title = $('noteTitle').value.trim();
   const remark = $('noteRemark').value.trim();
   const lines = [...document.querySelectorAll('#lineItems .line-item')].map(row=>{
-    return {
-      name: row.querySelector('.pname').value.trim(),
-      qty: row.querySelector('.pqty').value.trim()
-    };
+    return { name: row.querySelector('.pname').value.trim(), qty: row.querySelector('.pqty').value.trim() };
   }).filter(l=> l.name || l.qty);
   if(!title){ toast('写个标题吧'); return; }
   if(!lines.length){ toast('至少加一行产品'); return; }
   const list = store.get('notes', []);
   list.unshift({ type, title, remark, lines, time: new Date().toLocaleString('zh-CN') });
   store.set('notes', list);
-  $('noteTitle').value = ''; $('noteRemark').value = '';
-  $('lineItems').innerHTML = '';
+  $('noteTitle').value = ''; $('noteRemark').value = ''; $('lineItems').innerHTML = '';
   renderNotes(); toast('已保存这张单');
 }
-function deleteNote(i){
-  if(!confirm('删除这张单？')) return;
-  const list = store.get('notes', []);
-  list.splice(i, 1);
-  store.set('notes', list);
-  renderNotes(); toast('已删除');
+function deleteNote(i){ if(confirm('删除这张单？')){ const list = store.get('notes', []); list.splice(i, 1); store.set('notes', list); renderNotes(); toast('已删除'); } }
+function viewNote(i){ const n = store.get('notes', [])[i]; if(n){ const detail = n.lines.map(l=>`${l.name} × ${l.qty || '?'}`).join('\n'); alert(`【${n.type}】${n.title}\n时间：${n.time}\n${n.remark ? '备注：' + n.remark + '\n' : ''}\n产品清单：\n${detail}`); } }
+function shareNote(i){
+  const n = store.get('notes', [])[i];
+  let text = `📝 【${n.type}】${n.title}\n时间：${n.time}\n`;
+  if(n.remark) text += `备注：${n.remark}\n`;
+  text += `\n产品清单：\n`;
+  n.lines.forEach(l => text += `- ${l.name} x ${l.qty || '?'}\n`);
+  shareText(text);
 }
 function renderNotes(){
   const list = store.get('notes', []);
@@ -741,26 +867,19 @@ function renderNotes(){
         </div>
         <div class="item-actions">
           <button class="mini-btn" onclick="viewNote(${i})">查看</button>
+          <button class="mini-btn share" onclick="shareNote(${i})">转发</button>
           <button class="mini-btn del" onclick="deleteNote(${i})">删除</button>
         </div>
       </div>
     </div>`).join('') : '<div class="empty">还没有笔记</div>';
 }
-function viewNote(i){
-  const n = store.get('notes', [])[i];
-  if(!n) return;
-  const detail = n.lines.map(l=>`${l.name} × ${l.qty || '?'}`).join('\n');
-  alert(`【${n.type}】${n.title}\n时间：${n.time}\n${n.remark ? '备注：' + n.remark + '\n' : ''}\n产品清单：\n${detail}`);
-}
 
-/* ========== 存款 (增加多币种切换) ========== */
+/* ========== 存款 ========== */
 let currentCurrency = store.get('currency_setting', '¥'); 
-
 function toggleCurrency() {
   currentCurrency = currentCurrency === '¥' ? '€' : '¥';
   store.set('currency_setting', currentCurrency);
-  renderMoney();
-  toast(`已切换为 ${currentCurrency === '¥' ? '人民币' : '欧元'}`);
+  renderMoney(); toast(`已切换为 ${currentCurrency === '¥' ? '人民币' : '欧元'}`);
 }
 function addMoney(){
   const amt = parseFloat($('moneyAmount').value);
@@ -772,13 +891,7 @@ function addMoney(){
   $('moneyAmount').value = $('moneySource').value = '';
   renderMoney(); toast('已记录');
 }
-function deleteMoney(i){
-  if(!confirm('删除这条存款记录？总额会重新计算。')) return;
-  const list = store.get('money', []);
-  list.splice(i, 1);
-  store.set('money', list);
-  renderMoney(); toast('已删除');
-}
+function deleteMoney(i){ if(confirm('删除这条记录？总额会重新计算。')){ const list = store.get('money', []); list.splice(i, 1); store.set('money', list); renderMoney(); toast('已删除'); } }
 function renderMoney(){
   const list = store.get('money', []);
   const total = list.reduce((s, m)=> s + m.amt, 0);
@@ -791,24 +904,18 @@ function renderMoney(){
           <span class="meta" style="margin-left:8px;">${esc(m.time)}</span>
           ${m.src ? `<div style="font-size:13px;margin-top:4px;opacity:.85;">${esc(m.src)}</div>` : ''}
         </div>
-        <div class="item-actions">
-          <button class="mini-btn del" onclick="deleteMoney(${i})">删除</button>
-        </div>
+        <div class="item-actions"><button class="mini-btn del" onclick="deleteMoney(${i})">删除</button></div>
       </div>
     </div>`).join('') : '<div class="empty">还没有记录</div>';
 }
 
-/* ========== 待办 ========== */
+/* ========== 待办 (加了分享) ========== */
 function addTodo(){
   const title = $('todoTitle').value.trim();
   if(!title){ toast('写点要做什么'); return; }
   const item = {
-    title,
-    date: $('todoDate').value,
-    place: $('todoPlace').value.trim(),
-    remark: $('todoRemark').value.trim(),
-    done: false,
-    time: new Date().toLocaleString('zh-CN')
+    title, date: $('todoDate').value, place: $('todoPlace').value.trim(),
+    remark: $('todoRemark').value.trim(), done: false, time: new Date().toLocaleString('zh-CN')
   };
   const file = $('todoPhoto').files[0];
   const save = photo => {
@@ -816,23 +923,20 @@ function addTodo(){
     const list = store.get('todo', []);
     list.unshift(item);
     store.set('todo', list);
-    $('todoTitle').value = $('todoDate').value = $('todoPlace').value = $('todoRemark').value = '';
-    $('todoPhoto').value = '';
+    $('todoTitle').value = $('todoDate').value = $('todoPlace').value = $('todoRemark').value = ''; $('todoPhoto').value = '';
     renderTodo(); toast('待办已添加');
   };
   file ? fileToDataURL(file, save) : save('');
 }
-function toggleTodo(i){
-  const list = store.get('todo', []);
-  list[i].done = !list[i].done;
-  store.set('todo', list); renderTodo();
-}
-function deleteTodo(i){
-  if(!confirm('删除这条待办？')) return;
-  const list = store.get('todo', []);
-  list.splice(i, 1);
-  store.set('todo', list);
-  renderTodo(); toast('已删除');
+function toggleTodo(i){ const list = store.get('todo', []); list[i].done = !list[i].done; store.set('todo', list); renderTodo(); }
+function deleteTodo(i){ if(confirm('删除这条待办？')){ const list = store.get('todo', []); list.splice(i, 1); store.set('todo', list); renderTodo(); toast('已删除'); } }
+function shareTodo(i){
+  const t = store.get('todo', [])[i];
+  let text = `✅ 待办事项：${t.title}\n`;
+  if(t.date) text += `时间：${t.date.replace('T',' ')}\n`;
+  if(t.place) text += `地点：${t.place}\n`;
+  if(t.remark) text += `备注：${t.remark}\n`;
+  shareText(text);
 }
 function renderTodo(){
   const list = store.get('todo', []);
@@ -850,46 +954,25 @@ function renderTodo(){
           </div>
         </div>
         <div class="item-actions">
+          <button class="mini-btn share" onclick="shareTodo(${i})">转发</button>
           <button class="mini-btn del" onclick="deleteTodo(${i})">删除</button>
         </div>
       </div>
     </div>`).join('') : '<div class="empty">还没有待办</div>';
 }
 
-function fileToDataURL(file, cb){
-  const reader = new FileReader();
-  reader.onload = e => cb(e.target.result);
-  reader.readAsDataURL(file);
-}
+function fileToDataURL(file, cb){ const reader = new FileReader(); reader.onload = e => cb(e.target.result); reader.readAsDataURL(file); }
 
 /* ========== 发票 ========== */
-const invoiceInputs = [
-  'sender-name','sender-address1','sender-address2','sender-nie','sender-tel',
-  'receiver-name','receiver-address1','receiver-address2','receiver-cif','receiver-tel',
-  'invoice-date','invoice-number','bank-account','iva-rate'
-];
+const invoiceInputs = ['sender-name','sender-address1','sender-address2','sender-nie','sender-tel','receiver-name','receiver-address1','receiver-address2','receiver-cif','receiver-tel','invoice-date','invoice-number','bank-account','iva-rate'];
 function initInvoice(){
-  invoiceInputs.forEach(id=>{
-    const saved = localStorage.getItem('factura_' + id);
-    if(saved !== null && $(id)) $(id).value = saved;
-  });
-  if(!$('invoice-date').value){
-    $('invoice-date').value = new Date().toISOString().split('T')[0];
-  }
-  if(!$('product-rows').children.length){
-    addInvoiceRow({ref:'T1', desc:'POLO BLANCO MAPFRE', qty:250, price:3.50});
-    addInvoiceRow({ref:'T1', desc:'POLO MC PORTUARIO TENERIFE', qty:100, price:6.00});
-  }
+  invoiceInputs.forEach(id=>{ const saved = localStorage.getItem('factura_' + id); if(saved !== null && $(id)) $(id).value = saved; });
+  if(!$('invoice-date').value){ $('invoice-date').value = new Date().toISOString().split('T')[0]; }
+  if(!$('product-rows').children.length){ addInvoiceRow({ref:'T1', desc:'POLO BLANCO MAPFRE', qty:250, price:3.50}); addInvoiceRow({ref:'T1', desc:'POLO MC PORTUARIO TENERIFE', qty:100, price:6.00}); }
   calculateInvoiceTotals();
 }
-function saveInvoiceData(){
-  invoiceInputs.forEach(id=>{
-    if($(id)) localStorage.setItem('factura_' + id, $(id).value);
-  });
-  calculateInvoiceTotals();
-}
+function saveInvoiceData(){ invoiceInputs.forEach(id=>{ if($(id)) localStorage.setItem('factura_' + id, $(id).value); }); calculateInvoiceTotals(); }
 function addInvoiceRow(data = { ref:'', desc:'', qty:'', price:'' }){
-  const tbody = $('product-rows');
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input type="text" class="item-ref" value="${esc(data.ref)}" placeholder="Ref"></td>
@@ -899,20 +982,14 @@ function addInvoiceRow(data = { ref:'', desc:'', qty:'', price:'' }){
     <td class="item-subtotal" style="text-align:right;">0,00 €</td>
     <td class="no-print"><button class="delete-btn" onclick="deleteInvoiceRow(this)">X</button></td>
   `;
-  tbody.appendChild(tr);
-  calculateInvoiceTotals();
+  $('product-rows').appendChild(tr); calculateInvoiceTotals();
 }
-function deleteInvoiceRow(btn){
-  const row = btn.parentNode.parentNode;
-  row.parentNode.removeChild(row);
-  calculateInvoiceTotals();
-}
+function deleteInvoiceRow(btn){ btn.parentNode.parentNode.removeChild(btn.parentNode.parentNode); calculateInvoiceTotals(); }
 function formatCurrency(num){ return num.toFixed(2).replace('.', ',') + ' €'; }
 function calculateInvoiceTotals(){
   let totalQty = 0, base = 0;
   document.querySelectorAll('#product-rows tr').forEach(row=>{
-    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+    const qty = parseFloat(row.querySelector('.item-qty').value) || 0, price = parseFloat(row.querySelector('.item-price').value) || 0;
     const sub = qty * price;
     row.querySelector('.item-subtotal').innerText = formatCurrency(sub);
     totalQty += qty; base += sub;
@@ -920,42 +997,17 @@ function calculateInvoiceTotals(){
   $('total-qty').innerText = totalQty;
   $('base-imponible-display').innerText = formatCurrency(base);
   $('base-imponible-calculation').innerText = formatCurrency(base);
-  const ivaRate = parseFloat($('iva-rate').value) || 0;
-  const ivaAmount = base * (ivaRate / 100);
+  const ivaRate = parseFloat($('iva-rate').value) || 0, ivaAmount = base * (ivaRate / 100);
   $('iva-amount').innerText = formatCurrency(ivaAmount);
   $('total-amount').innerText = formatCurrency(base + ivaAmount);
 }
 function generatePDF(){
-  const element = $('invoice-content');
-  const invoiceNum = $('invoice-number').value || 'Factura';
-  const fileName = `Factura_${invoiceNum}.pdf`;
+  const element = $('invoice-content'), invoiceNum = $('invoice-number').value || 'Factura';
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  if(isIOS && navigator.userAgent.indexOf('MicroMessenger') > -1){
-    alert("苹果手机如果在微信里打开可能无法直接下载。\n\n请点击右上角「...」，选择「在默认浏览器中打开」，然后再点击保存。");
-    return;
-  }
-  
-  const style = document.createElement('style');
-  style.innerHTML = '.no-print { display: none !important; }';
-  document.head.appendChild(style);
-
-  const opt = {
-    margin: 0,
-    filename: fileName,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
-  };
-  
-  html2pdf().set(opt).from(element).save().then(()=>{
-    document.head.removeChild(style);
-  }).catch(err=>{
-    console.error('生成失败', err);
-    document.head.removeChild(style);
-    alert("生成 PDF 失败，将调起系统打印。请在弹出的界面选择「存储为 PDF」。");
-    window.print();
-  });
+  if(isIOS && navigator.userAgent.indexOf('MicroMessenger') > -1){ alert("苹果手机如果在微信里打开可能无法直接下载。\n\n请点击右上角「...」，选择「在默认浏览器中打开」，然后再点击保存。"); return; }
+  const style = document.createElement('style'); style.innerHTML = '.no-print { display: none !important; }'; document.head.appendChild(style);
+  const opt = { margin: 0, filename: `Factura_${invoiceNum}.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'] } };
+  html2pdf().set(opt).from(element).save().then(()=>{ document.head.removeChild(style); }).catch(err=>{ document.head.removeChild(style); alert("生成 PDF 失败，将调起系统打印。"); window.print(); });
 }
 </script>
 </body>
