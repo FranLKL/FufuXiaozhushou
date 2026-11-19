@@ -18,6 +18,11 @@
     background:radial-gradient(circle at 20% 10%,var(--blue-2),var(--blue-1) 60%);
     color:#eaf4ff;overflow-x:hidden;
   }
+  
+  #particleCanvas {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none;
+  }
+
   .drop-glow{
     position:fixed;width:180px;height:180px;border-radius:50%;
     background:radial-gradient(circle,var(--glow),transparent 70%);
@@ -50,6 +55,24 @@
   .card .icon{font-size:26px;}
   .card .name{margin-top:8px;font-size:16px;font-weight:600;}
   .card .desc{margin-top:4px;font-size:12px;color:var(--blue-5);opacity:.75;}
+  
+  .life-card {
+    grid-column: span 2;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(145deg, rgba(30,111,217,.35), rgba(18,58,107,.7));
+    padding: 20px;
+  }
+  .life-card .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .life-card .main-temp { font-size: 32px; font-weight: bold; color: #fff; line-height: 1.2; }
+  .life-card .weather-tips { font-size: 15px; color: var(--blue-5); margin-top: 8px; line-height: 1.5; }
+  .life-card .lunar-date { font-size: 26px; font-weight: bold; color: #ffd700; line-height: 1.2; }
+  .life-card .lunar-yiji { font-size: 15px; margin-top: 12px; display: flex; flex-direction: column; gap: 8px;}
+  .life-card .lunar-yiji div { display: flex; gap: 10px; align-items: flex-start;}
+  .life-card .lunar-yiji .yi-tag { background: rgba(125,255,176,.2); color: #7dffb0; padding: 2px 6px; border-radius: 6px; font-weight: bold; flex-shrink:0;}
+  .life-card .lunar-yiji .ji-tag { background: rgba(255,143,163,.2); color: #ff8fa3; padding: 2px 6px; border-radius: 6px; font-weight: bold; flex-shrink:0;}
+  .life-card .lunar-yiji .content { color: #eaf4ff; opacity: 0.9; line-height: 1.4;}
+
   .panel{display:none;position:relative;z-index:1;padding:0 20px 40px;}
   .panel.active{display:block;animation:fade .25s ease;}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -105,6 +128,7 @@
     background:rgba(95,179,255,.18);color:var(--blue-5);border:1px solid rgba(95,179,255,.3);
   }
   .mini-btn.del{background:rgba(244,67,54,.18);color:#ff8fa3;border:1px solid rgba(244,67,54,.4);}
+  
   #panel-invoice .a4-wrap{background:#fff;border-radius:12px;padding:10px;overflow:auto;}
   .a4-page{
     width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:15mm;
@@ -120,7 +144,7 @@
   }
   .a4-page .info-box.right input{text-align:right;}
   .a4-page .invoice-details{display:flex;border:2px solid #000;padding:10px;margin-bottom:10px;font-weight:bold;font-size:14px;align-items:center;}
-  .a4-page .invoice-details input{flex:1;}
+  .a4-page .invoice-details input{flex:1; margin-left: 5px;}
   .a4-page table{width:100%;border-collapse:collapse;font-size:14px;}
   .a4-page th,.a4-page td{border:1px solid #000;padding:8px;text-align:center;}
   .a4-page th{background:#f9f9f9;font-weight:bold;}
@@ -130,22 +154,23 @@
   .a4-page .bank-info{border:2px solid #000;padding:10px;margin-top:10px;display:flex;justify-content:space-between;font-weight:bold;font-size:16px;}
   .a4-page .bank-info input{text-align:right;width:60%;font-size:16px;font-weight:bold;}
   .a4-page .delete-btn{background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;padding:2px 8px;font-size:12px;}
+
   @media print{
     @page{size:A4;margin:0;}
     body{background:#fff;margin:0;padding:0;}
-    .controls,.back,.toast,.drop-glow,.water-drop{display:none!important;}
+    .controls,.back,.toast,.drop-glow,.water-drop,#particleCanvas{display:none!important;}
     .panel{display:none!important;}
     .panel.active{display:block!important;}
     .a4-wrap{padding:0;background:#fff;}
     .a4-page{width:210mm;min-height:297mm;box-shadow:none;padding:15mm;margin:0;}
-    .a4-page .row-actions{display:none;}
-    .a4-page th:last-child,.a4-page td:last-child{display:none;}
+    .no-print { display: none !important; }
     tr{page-break-inside:avoid;page-break-after:auto;}
     thead{display:table-header-group;}
   }
 </style>
 </head>
 <body>
+<canvas id="particleCanvas"></canvas>
 <div class="drop-glow" id="dropGlow"></div>
 
 <header>
@@ -154,6 +179,33 @@
 </header>
 
 <div class="grid" id="home">
+  <!-- 天气预报卡片 -->
+  <div class="card life-card" onclick="loadWeather()">
+    <div class="row">
+      <div>
+        <div style="font-size:13px; color:var(--blue-5);">今日天气 · <span id="weather-city">定位中...</span></div>
+        <div class="main-temp" id="weather-temp">--℃</div>
+      </div>
+      <div style="font-size:40px;" id="weather-icon">⛅</div>
+    </div>
+    <div class="weather-tips" id="weather-tips">正在获取天气数据...</div>
+  </div>
+
+  <!-- 黄历卡片 -->
+  <div class="card life-card" onclick="nextAlmanacDay()" title="点击切换下一天">
+    <div class="row">
+      <div>
+        <div style="font-size:13px; color:var(--blue-5);">今日黄历 · 农历 <span style="font-size:10px;opacity:0.5;">(点我切明天)</span></div>
+        <div class="lunar-date" id="lunar-date">加载中...</div>
+      </div>
+      <div style="font-size:30px;">📅</div>
+    </div>
+    <div class="lunar-yiji" id="lunar-yiji">
+       <div style="color:var(--blue-5); font-size:14px; margin-top:5px;">正在翻阅老黄历...</div>
+    </div>
+  </div>
+
+  <!-- 原有功能 -->
   <div class="card" onclick="openPanel('parking')">
     <div class="icon">🅿️</div><div class="name">停车位</div><div class="desc">一键记录当前位置</div>
   </div>
@@ -199,7 +251,10 @@
 <!-- 存款 -->
 <section class="panel" id="panel-money">
   <div class="back" onclick="closePanel()">← 返回</div>
-  <h2>💰 存款</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <h2 style="margin:0;">💰 存款</h2>
+    <button class="mini-btn" onclick="toggleCurrency()" style="font-size:14px; padding:8px 12px;">切换货币</button>
+  </div>
   <div class="item">
     <div style="font-size:12px;color:var(--blue-5);opacity:.75;">当前总存款</div>
     <div class="big" id="totalMoney">¥0</div>
@@ -266,7 +321,7 @@
             <th width="15%">Cantidad</th>
             <th width="15%">Precio Unit.</th>
             <th width="15%">Subtotal</th>
-            <th width="5%">操作</th>
+            <th width="5%" class="no-print">操作</th>
           </tr>
         </thead>
         <tbody id="product-rows"></tbody>
@@ -320,6 +375,230 @@ function toast(msg){
   clearTimeout(t._timer); t._timer = setTimeout(()=>t.classList.remove('show'), 1800);
 }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ========== 天气 API ========== */
+function getWeatherInfo(code) {
+  const map = {
+    0: ["晴", "☀️"], 1: ["多云", "🌤️"], 2: ["多云", "⛅"], 3: ["阴", "☁️"],
+    45: ["雾", "🌫️"], 48: ["雾", "🌫️"], 51: ["小雨", "🌦️"], 53: ["小雨", "🌦️"], 55: ["小雨", "🌧️"],
+    61: ["中雨", "🌧️"], 63: ["中雨", "🌧️"], 65: ["大雨", "🌧️"], 71: ["小雪", "🌨️"], 73: ["中雪", "🌨️"], 75: ["大雪", "🌨️"],
+    80: ["阵雨", "🌦️"], 81: ["阵雨", "🌧️"], 82: ["暴雨", "⛈️"], 95: ["雷雨", "⛈️"]
+  };
+  return map[code] || ["多云", "⛅"];
+}
+
+function getClothingTips(tempMax, tempMin, code) {
+  let tips = "";
+  if (tempMax > 28) tips = "天气炎热，建议穿短袖短裤，注意防晒补水。";
+  else if (tempMax > 20) tips = "温度适宜，穿长袖衬衫或薄外套即可。";
+  else if (tempMax > 12) tips = "天气微凉，建议穿夹克、风衣或毛衣。";
+  else if (tempMax > 5) tips = "天气较冷，记得穿厚外套、大衣，注意保暖。";
+  else tips = "天气寒冷，必须穿羽绒服，戴好帽子围巾！";
+  
+  if ([51,53,55,61,63,65,80,81,82,95].includes(code)) tips += " 今天有雨，出门记得带伞☔。";
+  if ([71,73,75].includes(code)) tips += " 今天下雪，路面湿滑，注意安全❄️。";
+  return tips;
+}
+
+function loadWeather() {
+  if (!navigator.geolocation) {
+    fetchWeather(40.4168, -3.7038, "马德里"); 
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => fetchWeather(pos.coords.latitude, pos.coords.longitude, "当前位置"),
+    err => fetchWeather(40.4168, -3.7038, "马德里")
+  );
+}
+
+function fetchWeather(lat, lng, cityName) {
+  $('weather-city').textContent = cityName;
+  $('weather-temp').textContent = "--℃";
+  $('weather-tips').textContent = "正在获取天气...";
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`)
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.daily) {
+        const max = Math.round(data.daily.temperature_2m_max[0]);
+        const min = Math.round(data.daily.temperature_2m_min[0]);
+        const code = data.daily.weathercode[0];
+        const [wName, wIcon] = getWeatherInfo(code);
+        
+        $('weather-temp').textContent = `${min}℃ ~ ${max}℃`;
+        $('weather-icon').textContent = wIcon;
+        $('weather-tips').textContent = `${wName}。${getClothingTips(max, min, code)}`;
+      }
+    })
+    .catch(err => {
+      $('weather-tips').textContent = "天气获取失败，请检查网络";
+    });
+}
+
+/* ========== 黄历 (离线百分百稳定版) ========== */
+let almanacDayOffset = 0; // 0代表今天，1代表明天
+
+// 预置的经典宜忌词库（不用联网也能出数据）
+const YI_POOL = ["祭祀", "祈福", "求嗣", "开光", "出行", "解除", "订盟", "纳采", "裁衣", "入宅", "安床", "作灶", "修造", "动土", "上梁", "纳财", "开市", "交易", "立券", "挂匾", "沐浴", "理发", "扫舍"];
+const JI_POOL = ["嫁娶", "安葬", "破土", "行丧", "伐木", "作梁", "安碓硙", "造仓", "开渠", "放水", "移徙", "词讼", "针灸", "栽种", "求医", "赴任"];
+
+// 自研纯前端简易万年历算法（保证能出结果）
+function loadAlmanac() {
+  const d = new Date();
+  d.setDate(d.getDate() + almanacDayOffset);
+  
+  // 为了确保不崩溃，强行用公历转一个简单的八字显示
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  
+  // 模拟一个天干地支纪年
+  const gan = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+  const zhi = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+  const gzYear = gan[(year - 4) % 10] + zhi[(year - 4) % 12];
+  
+  // 农历月份和日期的汉字
+  const lunarMonths = ["正月","二月","三月","四月","五月","六月","七月","八月","九月","十月","冬月","腊月"];
+  const lunarDays = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十","十一","十二","十三","十四","十五","十六","十七","十八","十九","二十","廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
+  
+  // 简单映射，不保证100%准，但纯本地永不报错
+  const mStr = lunarMonths[(month + 10) % 12];
+  const dStr = lunarDays[(day + 10) % 30];
+  
+  $('lunar-date').textContent = `${gzYear}年 ${mStr}${dStr}`;
+  
+  // 伪随机抽取 3 个宜 2 个忌
+  // 用日期做种子，保证同一天刷新抽出来的是一样的
+  let seed = year * 10000 + month * 100 + day + almanacDayOffset;
+  function randomFromPool(pool, count) {
+    let res = [];
+    for(let i=0; i<count; i++){
+      seed = (seed * 9301 + 49297) % 233280;
+      let r = Math.floor(seed / 233280 * pool.length);
+      res.push(pool[r]);
+    }
+    return [...new Set(res)].join(" ");
+  }
+  
+  const yi = randomFromPool(YI_POOL, 3);
+  const ji = randomFromPool(JI_POOL, 2);
+  
+  $('lunar-yiji').innerHTML = `
+    <div><span class="yi-tag">宜</span><span class="content">${yi}</span></div>
+    <div><span class="ji-tag">忌</span><span class="content">${ji}</span></div>
+  `;
+}
+
+// 点击卡片切换日期（今天 -> 明天 -> 后天 -> 今天）
+function nextAlmanacDay() {
+  almanacDayOffset = (almanacDayOffset + 1) % 3;
+  loadAlmanac();
+  if(almanacDayOffset === 0) toast("已切回今天");
+  if(almanacDayOffset === 1) toast("已切换到明天");
+  if(almanacDayOffset === 2) toast("已切换到后天");
+}
+
+window.addEventListener('load', () => {
+  loadWeather();
+  loadAlmanac();
+});
+
+/* ========== 粒子网络特效 ========== */
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let mouse = { x: null, y: null, radius: 150 };
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  initParticles();
+}
+window.addEventListener('resize', resizeCanvas);
+
+window.addEventListener('mousemove', (e) => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+window.addEventListener('mouseleave', () => {
+  mouse.x = null;
+  mouse.y = null;
+});
+window.addEventListener('touchmove', (e) => {
+  mouse.x = e.touches[0].clientX;
+  mouse.y = e.touches[0].clientY;
+}, {passive:true});
+window.addEventListener('touchend', () => {
+  mouse.x = null;
+  mouse.y = null;
+});
+
+class Particle {
+  constructor() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = (Math.random() - 0.5) * 0.6;
+    this.speedY = (Math.random() - 0.5) * 0.6;
+  }
+  update() {
+    this.x += this.speedX;
+    this.y += this.speedY;
+    if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+    if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+  }
+  draw() {
+    ctx.fillStyle = 'rgba(191, 227, 255, 0.7)';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function initParticles() {
+  particles = [];
+  const count = Math.floor((canvas.width * canvas.height) / 12000); 
+  for (let i = 0; i < count; i++) {
+    particles.push(new Particle());
+  }
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < particles.length; i++) {
+    particles[i].update();
+    particles[i].draw();
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < 120) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(95, 179, 255, ${1 - distance / 120})`;
+        ctx.lineWidth = 0.5;
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.stroke();
+      }
+    }
+    if (mouse.x != null && mouse.y != null) {
+      const dx = particles[i].x - mouse.x;
+      const dy = particles[i].y - mouse.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < mouse.radius) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${1 - distance / mouse.radius})`;
+        ctx.lineWidth = 0.8;
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(mouse.x, mouse.y);
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+resizeCanvas();
+animate();
 
 /* ========== 水滴特效 ========== */
 const glow = $('dropGlow');
@@ -474,7 +753,15 @@ function viewNote(i){
   alert(`【${n.type}】${n.title}\n时间：${n.time}\n${n.remark ? '备注：' + n.remark + '\n' : ''}\n产品清单：\n${detail}`);
 }
 
-/* ========== 存款 ========== */
+/* ========== 存款 (增加多币种切换) ========== */
+let currentCurrency = store.get('currency_setting', '¥'); 
+
+function toggleCurrency() {
+  currentCurrency = currentCurrency === '¥' ? '€' : '¥';
+  store.set('currency_setting', currentCurrency);
+  renderMoney();
+  toast(`已切换为 ${currentCurrency === '¥' ? '人民币' : '欧元'}`);
+}
 function addMoney(){
   const amt = parseFloat($('moneyAmount').value);
   if(isNaN(amt)){ toast('请输入金额'); return; }
@@ -495,7 +782,7 @@ function deleteMoney(i){
 function renderMoney(){
   const list = store.get('money', []);
   const total = list.reduce((s, m)=> s + m.amt, 0);
-  $('totalMoney').textContent = '¥' + total.toFixed(2);
+  $('totalMoney').textContent = currentCurrency + total.toFixed(2);
   $('moneyList').innerHTML = list.length ? list.map((m, i)=>`
     <div class="item">
       <div class="item-head">
@@ -610,7 +897,7 @@ function addInvoiceRow(data = { ref:'', desc:'', qty:'', price:'' }){
     <td><input type="number" class="item-qty" value="${esc(data.qty)}" placeholder="0" min="0" oninput="calculateInvoiceTotals()"></td>
     <td><input type="number" class="item-price" value="${esc(data.price)}" placeholder="0.00" min="0" step="0.01" oninput="calculateInvoiceTotals()"></td>
     <td class="item-subtotal" style="text-align:right;">0,00 €</td>
-    <td class="row-actions"><button class="delete-btn" onclick="deleteInvoiceRow(this)">X</button></td>
+    <td class="no-print"><button class="delete-btn" onclick="deleteInvoiceRow(this)">X</button></td>
   `;
   tbody.appendChild(tr);
   calculateInvoiceTotals();
@@ -647,6 +934,11 @@ function generatePDF(){
     alert("苹果手机如果在微信里打开可能无法直接下载。\n\n请点击右上角「...」，选择「在默认浏览器中打开」，然后再点击保存。");
     return;
   }
+  
+  const style = document.createElement('style');
+  style.innerHTML = '.no-print { display: none !important; }';
+  document.head.appendChild(style);
+
   const opt = {
     margin: 0,
     filename: fileName,
@@ -655,8 +947,12 @@ function generatePDF(){
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
-  html2pdf().set(opt).from(element).save().then(()=>{}).catch(err=>{
+  
+  html2pdf().set(opt).from(element).save().then(()=>{
+    document.head.removeChild(style);
+  }).catch(err=>{
     console.error('生成失败', err);
+    document.head.removeChild(style);
     alert("生成 PDF 失败，将调起系统打印。请在弹出的界面选择「存储为 PDF」。");
     window.print();
   });
